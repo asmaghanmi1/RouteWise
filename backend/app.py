@@ -1,6 +1,7 @@
 
 import math
 import time
+import os
 import threading
 
 import requests
@@ -25,22 +26,17 @@ CORS(
     },
 )
 
-GEOCODING_URL = "https://nominatim.openstreetmap.org/search"
+GEOCODING_URL = "https://api.geoapify.com/v1/geocode/search"
 ROUTING_URL = "https://router.project-osrm.org/route/v1/driving"
-
-HEADERS = {
-    "User-Agent": "RouteWise/0.1 (personal learning project)"
-}
 
 GEOCODING_TIMEOUT = 15
 ROUTING_TIMEOUT = 20
-NOMINATIM_DELAY = 1.1
 MAX_PLACE_LENGTH = 200
 
-# In-memory cache and rate limiter for Nominatim.
+GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY")
+
 _geocode_cache = {}
 _geocode_lock = threading.Lock()
-_last_geocode_request = 0.0
 
 
 class PlaceNotFoundError(ValueError):
@@ -62,51 +58,50 @@ def is_number(value):
 
 def geocode(place):
     """Convert a place name into validated [longitude, latitude]."""
-    global _last_geocode_request
+
+    if not GEOAPIFY_API_KEY:
+        raise RuntimeError("GEOAPIFY_API_KEY is not configured.")
 
     cache_key = place.strip().casefold()
 
     with _geocode_lock:
-        # Avoid repeating requests for places already resolved.
         if cache_key in _geocode_cache:
             return _geocode_cache[cache_key].copy()
-
-        # Space out Nominatim requests within this process.
-        elapsed = time.monotonic() - _last_geocode_request
-        wait_time = NOMINATIM_DELAY - elapsed
-
-        if wait_time > 0:
-            time.sleep(wait_time)
-
-        _last_geocode_request = time.monotonic()
 
         response = requests.get(
             GEOCODING_URL,
             params={
-                "q": place,
-                "format": "jsonv2",
+                "text": place,
+                "apiKey": GEOAPIFY_API_KEY,
                 "limit": 1,
+                "format": "json",
             },
-            headers=HEADERS,
             timeout=GEOCODING_TIMEOUT,
         )
         response.raise_for_status()
 
         results = response.json()
 
-        if not isinstance(results, list):
+        if not isinstance(results, dict):
             raise InvalidGeocodingResponseError(
                 "Invalid response from geocoding service."
             )
 
-        if not results:
+        features = results.get("results")
+
+        if not isinstance(features, list):
+            raise InvalidGeocodingResponseError(
+                "Invalid response from geocoding service."
+            )
+
+        if not features:
             raise PlaceNotFoundError(f"Place not found: {place}")
 
-        result = results[0]
+        result = features[0]
 
         if not isinstance(result, dict):
             raise InvalidGeocodingResponseError(
-                "Invalid coordinates returned by geocoding service."
+                "Invalid geocoding result."
             )
 
         try:
@@ -117,22 +112,20 @@ def geocode(place):
                 "Invalid coordinates returned by geocoding service."
             ) from error
 
-        if not math.isfinite(longitude) or not math.isfinite(latitude):
-            raise InvalidGeocodingResponseError(
-                "Invalid coordinates returned by geocoding service."
-            )
-
-        if not -180 <= longitude <= 180 or not -90 <= latitude <= 90:
+        if (
+            not math.isfinite(longitude)
+            or not math.isfinite(latitude)
+            or not -180 <= longitude <= 180
+            or not -90 <= latitude <= 90
+        ):
             raise InvalidGeocodingResponseError(
                 "Coordinates are outside valid geographic limits."
             )
 
-        # OSRM expects longitude first, then latitude.
         coordinates = [longitude, latitude]
         _geocode_cache[cache_key] = coordinates
 
         return coordinates.copy()
-
 
 def extract_route_steps(route):
     """Extract navigation steps from a validated OSRM route."""

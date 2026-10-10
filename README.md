@@ -1,653 +1,336 @@
-\# RouteWise â€” Car Route Planning Web Application
+# RouteWise
 
+<p align="center">
+  <strong>A smarter way to plan your journey.</strong>
+  <br />
+  A full-stack route-planning application built with React, TypeScript and Flask.
+</p>
 
+<p align="center">
+  <a href="https://route-wise-ochre.vercel.app/">
+    <img src="https://img.shields.io/badge/Live%20Demo-Visit%20RouteWise-2563EB?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" />
+  </a>
+  <a href="https://github.com/asmaghanmi1/RouteWise/actions">
+    <img src="https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" alt="GitHub Actions" />
+  </a>
+</p>
 
-\[!\[CI](https://github.com/asmaghanmi1/RouteWise/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/asmaghanmi1/RouteWise/actions/workflows/ci.yml)
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-Frontend-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Python-Backend-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/Flask-REST%20API-000000?style=flat-square&logo=flask&logoColor=white" alt="Flask" />
+  <img src="https://img.shields.io/badge/Geoapify-Geocoding-7C3AED?style=flat-square" alt="Geoapify" />
+  <img src="https://img.shields.io/badge/OSRM-Routing-0F766E?style=flat-square" alt="OSRM" />
+</p>
 
-\[!\[Frontend](https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript-blue)](https://react.dev/)
+---
 
-\[!\[Backend](https://img.shields.io/badge/Backend-Flask-black)](https://flask.palletsprojects.com/)
+## Overview
 
+**RouteWise** is a full-stack web application designed to calculate driving routes between two locations. It combines a responsive frontend, a REST API, geocoding, and route calculation services in a separately deployed architecture.
 
+The project demonstrates practical skills in frontend development, backend API design, external service integration, input validation, automated testing, and continuous integration.
 
-\*\*RouteWise\*\* is a full-stack web application that helps users plan car journeys between two locations. It combines a React and TypeScript frontend with a Flask REST API, external geocoding and routing services, automated tests, and continuous integration.
+|                      |                                                                     |
+| -------------------- | ------------------------------------------------------------------- |
+| **Live application** | [route-wise-ochre.vercel.app](https://route-wise-ochre.vercel.app/) |
+| **Backend API**      | [routewise-mbyc.onrender.com](https://routewise-mbyc.onrender.com/) |
+| **Repository**       | [GitHub — RouteWise](https://github.com/asmaghanmi1/RouteWise)      |
+| **CI workflow**      | [GitHub Actions](https://github.com/asmaghanmi1/RouteWise/actions)  |
 
+## Features
 
+* **Driving route calculation** — request a route between an origin and a destination.
+* **Location geocoding** — convert place names into geographic coordinates through Geoapify.
+* **External routing integration** — retrieve road-route information from OSRM.
+* **REST API** — communicate through structured HTTP and JSON requests.
+* **Input validation** — reject malformed requests, invalid location values, and overly long place names.
+* **Routing response validation** — check external routing data before using it.
+* **Health endpoint** — check whether the backend API is responding.
+* **Automated quality checks** — execute backend tests, frontend linting, and a production build through GitHub Actions.
 
-\*\*Live application:\*\* https://route-wise-ochre.vercel.app/
-
-
-
-\*\*Backend API:\*\* https://routewise-mbyc.onrender.com/
-
-
-
-\*\*Source code:\*\* https://github.com/asmaghanmi1/RouteWise
-
-
-
-\## Table of Contents
-
-
-
-\* \[Features](#features)
-
-\* \[Architecture](#architecture)
-
-\* \[Technology Stack](#technology-stack)
-
-\* \[Project Structure](#project-structure)
-
-\* \[Getting Started](#getting-started)
-
-\* \[Environment Configuration](#environment-configuration)
-
-\* \[API Reference](#api-reference)
-
-\* \[Testing and Code Quality](#testing-and-code-quality)
-
-\* \[Deployment](#deployment)
-
-\* \[Security and Limitations](#security-and-limitations)
-
-\* \[Future Improvements](#future-improvements)
-
-
-
-\## Features
-
-
-
-\* \*\*Route planning:\*\* calculate a driving route between an origin and a destination.
-
-\* \*\*Geocoding:\*\* convert place names into geographic coordinates using Geoapify.
-
-\* \*\*Route calculation:\*\* retrieve road-route information from OSRM.
-
-\* \*\*Interactive frontend:\*\* built with React and TypeScript.
-
-\* \*\*REST API:\*\* a Flask backend validates requests and communicates with external services.
-
-\* \*\*Input validation:\*\* reject malformed requests, empty locations, and excessively long place names.
-
-\* \*\*Response validation:\*\* check routing-service data before processing it.
-
-\* \*\*Health monitoring endpoint:\*\* verify whether the backend API is responding.
-
-\* \*\*Automated quality checks:\*\* run backend tests, frontend linting, and a production build through GitHub Actions.
-
-
-
-\## Architecture
-
-
+## Architecture
 
 ```mermaid
+flowchart TB
+    USER([User])
 
-flowchart TD
+    subgraph FRONTEND["Frontend — Vercel"]
+        UI["React + TypeScript"]
+        MAP["Route interface"]
+        UI --- MAP
+    end
 
-&#x20;   U\[User] --> FE\[React and TypeScript Frontend]
+    subgraph BACKEND["Backend — Render"]
+        API["Flask REST API"]
+        VALIDATION["Input and response validation"]
+        API --- VALIDATION
+    end
 
-&#x20;   FE -->|HTTP JSON| API\[Flask REST API]
+    GEO["Geoapify<br/>Geocoding"]
+    ROUTER["OSRM<br/>Route calculation"]
 
-&#x20;   API -->|Geocode locations| GEO\[Geoapify Geocoding API]
+    USER --> UI
+    UI <-->|HTTP / JSON| API
+    API --> GEO
+    GEO --> API
+    API --> ROUTER
+    ROUTER --> API
 
-&#x20;   API -->|Calculate driving route| OSRM\[OSRM Routing API]
+    classDef frontend fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A
+    classDef backend fill:#E2E8F0,stroke:#475569,color:#0F172A
+    classDef external fill:#D1FAE5,stroke:#059669,color:#064E3B
 
-&#x20;   GEO --> API
-
-&#x20;   OSRM --> API
-
-&#x20;   API -->|Route response| FE
-
-&#x20;   FE -->|Display results| U
-
-
-
-&#x20;   GH\[GitHub Repository] --> CI\[GitHub Actions CI]
-
-&#x20;   CI --> T\[Backend Tests]
-
-&#x20;   CI --> L\[Frontend ESLint]
-
-&#x20;   CI --> B\[Frontend Production Build]
-
+    class UI,MAP frontend
+    class API,VALIDATION backend
+    class GEO,ROUTER external
 ```
 
+### Request lifecycle
 
+1. The user enters an origin and a destination.
+2. The frontend submits the location data to the Flask API.
+3. The backend validates the request.
+4. Geoapify resolves the place names into coordinates.
+5. OSRM calculates the driving route.
+6. The backend validates the routing response and returns the result to the frontend.
 
-\### Request lifecycle
+The frontend and backend are hosted independently. External geocoding and routing services provide the geographic data and route calculations.
 
+## Technology Stack
 
+| Layer            | Technologies                   |
+| ---------------- | ------------------------------ |
+| Frontend         | React, TypeScript, Vite        |
+| Backend          | Python, Flask                  |
+| API              | REST, HTTP, JSON               |
+| Geocoding        | Geoapify                       |
+| Routing          | OSRM                           |
+| Backend tests    | pytest                         |
+| Frontend checks  | ESLint, TypeScript, Vite build |
+| CI               | GitHub Actions                 |
+| Frontend hosting | Vercel                         |
+| Backend hosting  | Render                         |
+| Version control  | Git, GitHub                    |
 
-1\. The user enters an origin and a destination in the frontend.
-
-2\. The frontend sends a JSON request to the Flask API.
-
-3\. The backend validates the submitted data.
-
-4\. Geoapify resolves the place names into geographic coordinates.
-
-5\. OSRM calculates the driving route using those coordinates.
-
-6\. The backend validates the routing response and returns the result to the frontend.
-
-
-
-The frontend and backend are deployed separately, allowing each component to be maintained and deployed independently.
-
-
-
-\## Technology Stack
-
-
-
-| Component              | Technologies                |
-
-| ---------------------- | --------------------------- |
-
-| Frontend               | React, TypeScript, Vite     |
-
-| Backend                | Python, Flask               |
-
-| API communication      | REST, HTTP, JSON            |
-
-| Geocoding              | Geoapify                    |
-
-| Routing                | OSRM                        |
-
-| Backend testing        | pytest                      |
-
-| Frontend quality       | ESLint, TypeScript compiler |
-
-| Continuous integration | GitHub Actions              |
-
-| Frontend hosting       | Vercel                      |
-
-| Backend hosting        | Render                      |
-
-| Version control        | Git and GitHub              |
-
-
-
-\## Project Structure
-
-
+## Project Structure
 
 ```text
-
 RouteWise/
-
-â”œâ”€â”€ .github/
-
-â”‚   â””â”€â”€ workflows/
-
-â”‚       â””â”€â”€ ci.yml
-
-â”œâ”€â”€ backend/
-
-â”‚   â”œâ”€â”€ tests/
-
-â”‚   â”‚   â””â”€â”€ test\_app.py
-
-â”‚   â”œâ”€â”€ app.py
-
-â”‚   â”œâ”€â”€ requirements.txt
-
-â”‚   â””â”€â”€ requirements-dev.txt
-
-â”œâ”€â”€ frontend/
-
-â”‚   â”œâ”€â”€ src/
-
-â”‚   â”œâ”€â”€ public/
-
-â”‚   â”œâ”€â”€ package.json
-
-â”‚   â”œâ”€â”€ package-lock.json
-
-â”‚   â””â”€â”€ vite.config.ts
-
-â”œâ”€â”€ .gitignore
-
-â””â”€â”€ README.md
-
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── backend/
+│   ├── tests/
+│   │   └── test_app.py
+│   ├── app.py
+│   ├── requirements.txt
+│   └── requirements-dev.txt
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   ├── package.json
+│   ├── package-lock.json
+│   └── vite.config.ts
+├── .gitignore
+└── README.md
 ```
 
+## Getting Started
 
-
-\## Getting Started
-
-
-
-\### Prerequisites
-
-
+### Prerequisites
 
 Install the following tools:
 
+* Python 3.12
+* Node.js 22 and npm
+* Git
+* A Geoapify API key for geocoding
 
+The application also depends on the availability of the configured OSRM routing service.
 
-\* Python 3.12
+### 1. Clone the repository
 
-\* Node.js 22 and npm
-
-\* Git
-
-
-
-An active Geoapify API key is required for geocoding requests. Routing requests also depend on the availability of the configured OSRM service.
-
-
-
-\### 1. Clone the repository
-
-
-
-```powershell
-
+```bash
 git clone https://github.com/asmaghanmi1/RouteWise.git
-
 cd RouteWise
-
 ```
 
+### 2. Set up the backend
 
-
-\### 2. Configure and start the backend
-
-
-
-Create a virtual environment:
-
-
+From the repository root, run:
 
 ```powershell
-
 cd backend
-
 python -m venv .venv
-
-```
-
-
-
-Activate it in PowerShell:
-
-
-
-```powershell
-
-.\\.venv\\Scripts\\Activate.ps1
-
-```
-
-
-
-Install the backend dependencies:
-
-
-
-```powershell
-
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-
 ```
 
-
-
-Configure the Geoapify API key for the current PowerShell session:
-
-
+Configure the API key in the current PowerShell session:
 
 ```powershell
-
-$env:GEOAPIFY\_API\_KEY = "YOUR\_GEOAPIFY\_API\_KEY"
-
+$env:GEOAPIFY_API_KEY = "YOUR_GEOAPIFY_API_KEY"
 ```
 
+Replace the placeholder with your own key. Do not commit the key to Git.
 
-
-Replace the placeholder with your own key. Never commit a real API key to Git.
-
-
-
-Start the Flask application:
-
-
+Start the backend:
 
 ```powershell
-
 python app.py
-
 ```
 
+The default local API address is expected to be `http://127.0.0.1:5000`, provided the application uses the default Flask development server configuration.
 
+### 3. Set up the frontend
 
-Unless the application is configured differently, the local API is expected to be available at:
-
-
-
-`http://127.0.0.1:5000`
-
-
-
-\### 3. Start the frontend
-
-
-
-Open a second PowerShell terminal from the repository root:
-
-
+Open a second terminal and navigate to the frontend directory:
 
 ```powershell
-
-cd C:\\Users\\Asmag\\RouteWise\\frontend
-
+cd frontend
 npm ci
-
 npm run dev
-
 ```
 
+Open the local URL displayed by Vite.
 
+For local development, ensure the frontend API configuration points to the local Flask backend. The deployed frontend uses the Render API.
 
-Open the local URL printed by Vite in your terminal.
+## API Reference
 
-
-
-The frontend must be configured to send API requests to the local backend during local development. The deployed frontend currently uses the Render backend URL.
-
-
-
-\## Environment Configuration
-
-
-
-The backend reads the Geoapify key from an environment variable:
-
-
-
-| Variable           | Purpose                                      | Required                    |
-
-| ------------------ | -------------------------------------------- | --------------------------- |
-
-| `GEOAPIFY\_API\_KEY` | Authenticates geocoding requests to Geoapify | Yes, for route calculations |
-
-
-
-For production, configure this variable in the backend hosting provider's environment settings.
-
-
-
-For local development, PowerShell's `$env:` syntax sets the variable for the current session. If you open a new terminal, configure it again.
-
-
-
-\*\*Security rules:\*\*
-
-
-
-\* Do not commit `.env` files containing real credentials.
-
-\* Do not expose the Geoapify key in frontend source code.
-
-\* Do not paste API keys into screenshots, issue reports, or public documentation.
-
-\* If a key is accidentally published, revoke or rotate it.
-
-
-
-\## API Reference
-
-
-
-\### Health check
-
-
+### Health check
 
 `GET /api/health`
 
-
-
 Checks whether the backend is responding.
 
-
-
-Example:
-
-
-
 ```http
-
-GET https://routewise-mbyc.onrender.com/api/health
-
+GET /api/health
 ```
 
-
-
-Expected response:
-
-
+Example response:
 
 ```json
-
 {
-
-&#x20; "service": "RouteWise API",
-
-&#x20; "status": "ok"
-
+  "service": "RouteWise API",
+  "status": "ok"
 }
-
 ```
 
-
-
-\### Calculate a route
-
-
+### Calculate a route
 
 `POST /api/route`
 
-
-
-Request body:
-
-
+Example request:
 
 ```json
-
 {
-
-&#x20; "origin": "Tunis, Tunisia",
-
-&#x20; "destination": "Sousse, Tunisia"
-
+  "origin": "Tunis, Tunisia",
+  "destination": "Sousse, Tunisia"
 }
-
 ```
 
+The backend validates the submitted locations, requests geocoding from Geoapify, and uses OSRM to calculate the driving route.
 
+| HTTP status | Meaning                                     |
+| ----------- | ------------------------------------------- |
+| `200`       | Successful request                          |
+| `400`       | Invalid request or input                    |
+| `404`       | Location not found                          |
+| `502`       | External service or response error          |
+| `503`       | Service configuration or availability issue |
 
-The backend validates the input, geocodes both locations, and requests a route from OSRM.
+The precise response fields depend on the backend implementation and the outcome of the request.
 
+## Testing and Continuous Integration
 
+RouteWise includes backend tests for the health endpoint, malformed requests, input validation, and routing response validation.
 
-Possible error categories include invalid input (`400`), an unresolved location (`404`), and external-service or configuration failures (`502` or `503`), depending on the failure.
-
-
-
-The exact successful response structure is defined by the backend implementation.
-
-
-
-\## Testing and Code Quality
-
-
-
-RouteWise includes automated backend tests covering the health endpoint, invalid requests, input validation, and routing-response validation.
-
-
-
-\### Run backend tests
-
-
+### Run backend tests
 
 From the repository root:
 
-
-
 ```powershell
-
 python -m pip install -r backend/requirements-dev.txt
-
 python -m pytest backend/tests -v
-
 ```
 
-
-
-\### Run frontend linting
-
-
+### Run frontend linting
 
 ```powershell
-
-npm --prefix .\\frontend run lint
-
+npm --prefix .\frontend run lint
 ```
 
-
-
-\### Build the frontend
-
-
+### Build the frontend
 
 ```powershell
-
-npm --prefix .\\frontend run build
-
+npm --prefix .\frontend run build
 ```
 
+### GitHub Actions pipeline
 
+The workflow in `.github/workflows/ci.yml` runs on pushes to `master` and pull requests targeting `master`.
 
-\### Continuous integration
+It performs two jobs:
 
+**Backend tests**
 
+* Install Python dependencies.
+* Run the pytest suite.
 
-The GitHub Actions workflow in `.github/workflows/ci.yml` runs on pushes to `master` and pull requests targeting `master`.
+**Frontend checks**
 
+* Install dependencies using `npm ci`.
+* Run ESLint.
+* Build the production frontend.
 
+The workflow has completed successfully for the project. Future executions can be checked on the [GitHub Actions page](https://github.com/asmaghanmi1/RouteWise/actions).
 
-It contains two jobs:
+## Deployment
 
+| Component   | Platform | URL                                                         |
+| ----------- | -------- | ----------------------------------------------------------- |
+| Frontend    | Vercel   | [Open application](https://route-wise-ochre.vercel.app/)    |
+| Backend     | Render   | [Open API](https://routewise-mbyc.onrender.com/)            |
+| Source code | GitHub   | [View repository](https://github.com/asmaghanmi1/RouteWise) |
 
+### Production configuration
 
-1\. \*\*Backend tests:\*\* install Python dependencies and execute pytest.
+The backend requires the `GEOAPIFY_API_KEY` environment variable for geocoding requests. Configure it in the Render service environment settings.
 
-2\. \*\*Frontend checks:\*\* install locked npm dependencies, run ESLint, and compile the production frontend.
+CORS must allow the deployed frontend origin.
 
+GitHub Actions provides continuous integration. Automatic production deployment after a push depends on the deployment settings configured in Vercel and Render.
 
+## Security and Limitations
 
-Workflow results are available in \[GitHub Actions](https://github.com/asmaghanmi1/RouteWise/actions).
+* API credentials must remain in backend environment variables.
+* Route calculation depends on third-party geocoding and routing services.
+* Public routing services can impose usage limits or experience downtime.
+* The health endpoint checks API responsiveness but does not guarantee that all external dependencies are operational.
+* The GitHub Actions pipeline validates tests, linting, and frontend compilation; it is not, by itself, an end-to-end test of the deployed application.
 
+## Roadmap
 
+Potential improvements include:
 
-\## Deployment
+* Add integration tests with mocked external API responses.
+* Add automated frontend tests.
+* Improve logging and external-service error reporting.
+* Add end-to-end tests against a controlled test environment.
+* Improve monitoring and API documentation.
+* Evaluate caching and request management to improve resilience.
 
+## Author
 
+**Asma Ghanmi**
 
-\### Frontend â€” Vercel
+Full-stack application project focused on web development, REST APIs, external service integration, testing, deployment, and continuous integration.
 
+---
 
-
-The frontend is deployed at:
-
-
-
-https://route-wise-ochre.vercel.app/
-
-
-
-\### Backend â€” Render
-
-
-
-The backend API is deployed at:
-
-
-
-https://routewise-mbyc.onrender.com/
-
-
-
-The backend must have `GEOAPIFY\_API\_KEY` configured in its environment settings. CORS must allow the deployed frontend origin.
-
-
-
-\### Continuous integration vs. deployment
-
-
-
-GitHub Actions validates the code through tests, linting, and a production build. This workflow is a \*\*continuous integration (CI)\*\* pipeline.
-
-
-
-Vercel and Render host the application components. Automatic deployment after a Git push depends on each hosting service's deployment configuration and is separate from the CI checks documented here.
-
-
-
-\## Security and Limitations
-
-
-
-\* Route calculations depend on third-party geocoding and routing services.
-
-\* Public routing infrastructure may impose rate limits, experience outages, or change its availability.
-
-\* The backend validates inputs and external routing responses, but external service availability cannot be guaranteed.
-
-\* The health endpoint checks backend responsiveness; it does not by itself guarantee that every external dependency is healthy.
-
-\* API keys must remain in backend environment configuration rather than frontend code or version control.
-
-
-
-\## Future Improvements
-
-
-
-Potential next steps include:
-
-
-
-\* Add integration tests using mocked Geoapify and OSRM responses.
-
-\* Add frontend tests for important user interactions.
-
-\* Introduce structured logging and improved external-service monitoring.
-
-\* Add request timeouts, retry policies, and clearer user-facing error messages where appropriate.
-
-\* Improve API documentation and response schemas.
-
-\* Add automated deployment checks and end-to-end tests.
-
-\* Evaluate caching and service usage limits for more reliable operation.
-
-
-
-\## Author
-
-
-
-Developed by \*\*Asma Ghanmi\*\* as a full-stack web application project, with an emphasis on API integration, validation, testing, deployment, and continuous integration.
-
-
-
-\## License
-
-
-
-No license has been specified in this repository yet. Unless a license is added, reuse and redistribution remain subject to the applicable copyright rules.
+<p align="center">
+  <sub>Built with React, Flask, Geoapify, OSRM and GitHub Actions.</sub>
+</p>

@@ -12,7 +12,7 @@ import type { LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:5000";
+const API_URL = "https://routewise-mbyc.onrender.com";
 
 type TransportMode = "car" | "train" | "plane" | "bus";
 

@@ -1,6 +1,7 @@
 
 import math
 import time
+import threading
 
 import requests
 from flask import Flask, jsonify, request
@@ -35,6 +36,11 @@ ROUTING_TIMEOUT = 20
 NOMINATIM_DELAY = 1.1
 MAX_PLACE_LENGTH = 200
 
+# In-memory cache and rate limiter for Nominatim.
+_geocode_cache = {}
+_geocode_lock = threading.Lock()
+_last_geocode_request = 0.0
+
 
 class PlaceNotFoundError(ValueError):
     """Raised when a place cannot be found."""
@@ -45,7 +51,7 @@ class InvalidGeocodingResponseError(ValueError):
 
 
 def is_number(value):
-    """Check that a value is a finite number, excluding booleans."""
+    """Check that a value is finite and is not a boolean."""
     return (
         isinstance(value, (int, float))
         and not isinstance(value, bool)
@@ -55,55 +61,76 @@ def is_number(value):
 
 def geocode(place):
     """Convert a place name into validated [longitude, latitude]."""
-    response = requests.get(
-        GEOCODING_URL,
-        params={
-            "q": place,
-            "format": "jsonv2",
-            "limit": 1,
-        },
-        headers=HEADERS,
-        timeout=GEOCODING_TIMEOUT,
-    )
-    response.raise_for_status()
+    global _last_geocode_request
 
-    results = response.json()
+    cache_key = place.strip().casefold()
 
-    if isinstance(results, list) and not results:
-        raise PlaceNotFoundError(f"Place not found: {place}")
+    with _geocode_lock:
+        # Avoid repeating requests for places already resolved.
+        if cache_key in _geocode_cache:
+            return _geocode_cache[cache_key].copy()
 
-    if not isinstance(results, list):
-        raise InvalidGeocodingResponseError(
-            "Invalid response from geocoding service."
+        # Space out Nominatim requests within this process.
+        elapsed = time.monotonic() - _last_geocode_request
+        wait_time = NOMINATIM_DELAY - elapsed
+
+        if wait_time > 0:
+            time.sleep(wait_time)
+
+        _last_geocode_request = time.monotonic()
+
+        response = requests.get(
+            GEOCODING_URL,
+            params={
+                "q": place,
+                "format": "jsonv2",
+                "limit": 1,
+            },
+            headers=HEADERS,
+            timeout=GEOCODING_TIMEOUT,
         )
+        response.raise_for_status()
 
-    result = results[0]
+        results = response.json()
 
-    if not isinstance(result, dict):
-        raise InvalidGeocodingResponseError(
-            "Invalid coordinates returned by geocoding service."
-        )
+        if not isinstance(results, list):
+            raise InvalidGeocodingResponseError(
+                "Invalid response from geocoding service."
+            )
 
-    try:
-        longitude = float(result["lon"])
-        latitude = float(result["lat"])
-    except (KeyError, TypeError, ValueError) as error:
-        raise InvalidGeocodingResponseError(
-            "Invalid coordinates returned by geocoding service."
-        ) from error
+        if not results:
+            raise PlaceNotFoundError(f"Place not found: {place}")
 
-    if not math.isfinite(longitude) or not math.isfinite(latitude):
-        raise InvalidGeocodingResponseError(
-            "Invalid coordinates returned by geocoding service."
-        )
+        result = results[0]
 
-    if not -180 <= longitude <= 180 or not -90 <= latitude <= 90:
-        raise InvalidGeocodingResponseError(
-            "Coordinates are outside valid geographic limits."
-        )
+        if not isinstance(result, dict):
+            raise InvalidGeocodingResponseError(
+                "Invalid coordinates returned by geocoding service."
+            )
 
-    # OSRM expects longitude first, then latitude.
-    return [longitude, latitude]
+        try:
+            longitude = float(result["lon"])
+            latitude = float(result["lat"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise InvalidGeocodingResponseError(
+                "Invalid coordinates returned by geocoding service."
+            ) from error
+
+        if not math.isfinite(longitude) or not math.isfinite(latitude):
+            raise InvalidGeocodingResponseError(
+                "Invalid coordinates returned by geocoding service."
+            )
+
+        if not -180 <= longitude <= 180 or not -90 <= latitude <= 90:
+            raise InvalidGeocodingResponseError(
+                "Coordinates are outside valid geographic limits."
+            )
+
+        # OSRM expects longitude first, then latitude.
+        coordinates = [longitude, latitude]
+        _geocode_cache[cache_key] = coordinates
+
+        return coordinates.copy()
 
 
 def extract_route_steps(route):
@@ -255,10 +282,6 @@ def calculate_route():
 
     try:
         start = geocode(origin)
-
-        # Respect the public Nominatim usage policy.
-        time.sleep(NOMINATIM_DELAY)
-
         end = geocode(destination)
 
         coordinates = (
@@ -302,6 +325,29 @@ def calculate_route():
         app.logger.exception("Invalid geocoding service response")
         return jsonify({
             "error": "The geocoding service returned invalid data."
+        }), 502
+
+    except requests.exceptions.HTTPError as error:
+        status = (
+            error.response.status_code
+            if error.response is not None
+            else None
+        )
+
+        if status == 429:
+            app.logger.warning(
+                "A map service rate limit was reached (HTTP 429)."
+            )
+            return jsonify({
+                "error": (
+                    "Le service de recherche de lieux est temporairement "
+                    "saturé. Réessayez plus tard."
+                )
+            }), 503
+
+        app.logger.exception("Map service returned an HTTP error")
+        return jsonify({
+            "error": "Map service unavailable. Please try again later."
         }), 502
 
     except requests.exceptions.JSONDecodeError:
